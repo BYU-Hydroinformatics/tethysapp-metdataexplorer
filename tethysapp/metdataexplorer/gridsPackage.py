@@ -1,4 +1,5 @@
 import grids
+import pandas
 import json
 import os
 import geopandas as gpd
@@ -16,7 +17,6 @@ Persistent_Store_Name = 'thredds_db'
 def extract_time_series_using_grids(request):
     try:
         if request.is_ajax() and request.method == 'POST':
-            print('started')
             credentials = json.loads(request.POST.get('userCredentials'))
             dimensions = request.POST.getlist('dimensions[]')
             dimension_values = json.loads(request.POST.get('dimensionsAndValues'))
@@ -27,11 +27,8 @@ def extract_time_series_using_grids(request):
             variable = request.POST.get('variable')
             shapefile_behavior = json.loads(request.POST.get('shapefileBehavior'))
             statistic = request.POST.get('statistic')
-
             print(engine)
-
             if engine == 'grids':
-                print('engine is grids')
                 dimensions_for_grids, final_coordinates, formatted_values, filepath_to_geojson, filepath_to_shifted_geojson \
                     = prep_parameters_for_grids(geojson_type, geojson_feature, dimensions, dimension_values)
 
@@ -55,8 +52,11 @@ def extract_time_series_using_grids(request):
                 os.remove(filepath_to_geojson)
                 os.remove(filepath_to_shifted_geojson)
             else:
-                print('engine is ncarrays')
-                time_series = ''
+                filepath_to_geojson = print_geojson_to_file(geojson_feature, 'temp')
+                array = ncarrays.ARRAY(opendap_url, variable)
+                time_series_numpy = array.get_series(filepath_to_geojson, datetime_format='%Y-%m-%d %H:%M:%S')
+                time_series = pandas.DataFrame(time_series_numpy, columns=['datetime', f'{variable}-{statistic}'])
+                os.remove(filepath_to_geojson)
 
             time_series_array = {
                 'timeSeries': time_series
